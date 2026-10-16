@@ -269,17 +269,17 @@
 
   function legend(rev) {
     const sw2 = (c, t, st2) => h('span', {}, h('i', { style: { background: c, border: st2 || 'none' } }), t);
-    const base = [sw2(MAP.COL.AI, 'AI'), sw2(MAP.COL.AO, 'AO'), sw2(MAP.COL.DI, 'DI'), sw2(MAP.COL.DO, 'DO standard'), sw2(MAP.COL.DOI, 'DO isolated, fused'), sw2('#9CA3AF', 'Spare pair'), sw2('#F1F4F2', 'Free slot', '1px solid #D7DADF'), sw2('repeating-linear-gradient(45deg,#F6F8F7,#F6F8F7 3px,#D7DADF 3px,#D7DADF 4px)', 'Empty baseplate (spare)')];
-    if (rev) base.push(sw2('#fff', 'Added', '2px solid #1D4ED8'), sw2('#fff', 'Moved in', '2px solid #B45309'), sw2('#fff', 'Freed slot', '1.5px dashed #6B7280'), h('span', {}, h('i', { style: { background: '#3B82F6', position: 'relative' } }), 'CHARM swap: white dot; renamed: white bar; unchanged: faded'));
+    const base = [sw2(MAP.COL.AI, 'AI'), sw2(MAP.COL.AO, 'AO'), sw2(MAP.COL.DI, 'DI'), sw2(MAP.COL.DO, 'DO standard'), sw2(MAP.COL.DOI, 'DO isolated, fused'), sw2('#9CA3AF', 'Spare pair'), sw2('#F7F9F8', 'Free', '1.5px solid #D5DAD7')];
+    if (rev) base.push(sw2('#fff', 'Added', '3px solid #1D4ED8'), sw2('#fff', 'Moved in', '3px solid #B45309'), sw2('#fff', 'Freed slot', '2px dashed #6B7280'), h('span', { class: 'cap', style: { fontSize: '15px' } }, 'White dot: CHARM swap. White bar: renamed. Faded: unchanged.'));
     return h('div', { class: 'legend' }, base);
   }
 
   function mapPanel(revMode) {
     const s = st(); const cabs = App.cabinets(); if (!cabs.length) return h('div');
     if (!cabs.find(c => c.n === s.cab)) s.cab = cabs[0].n;
-    mv = { head: h('div', { class: 'maphead' }), host: h('div', { class: 'mapwrap' }), table: h('div') };
-    const top = h('div', { class: 'panel' }, mv.head, legend(revMode && s.revView === 'changes'), mv.host);
-    const tbl = h('div', { class: 'panel', style: { marginTop: '12px' } }, h('div', { class: 'panel-h' }, h('h3', {}, 'Cables in this cabinet'), h('span', { class: 'cap' }, 'The same content as the map, as a table')), mv.table);
+    mv = { head: h('div', { class: 'maphead' }), host: h('div', { class: 'mapwrap' }), table: h('div'), legend: h('div') };
+    const top = h('div', { class: 'panel mapcard' }, mv.head, mv.host, mv.legend);
+    const tbl = h('div', { class: 'panel', style: { marginTop: '16px' } }, h('div', { class: 'panel-h' }, h('h3', {}, 'Cables in this cabinet'), h('span', { class: 'cap' }, 'The same content as the map, as a table')), mv.table);
     const wrap = h('div', {}, top, tbl);
     drawMapParts(revMode);
     return wrap;
@@ -288,11 +288,14 @@
   function drawMapParts(revMode) {
     const s = st(); const layout = App.layout(), seqMap = App.seqMap(); if (!layout || !mv.host) return;
     const rev = App.inRevView() && s.revView === 'changes'; const cab = s.cab; const c = App.cabinets().find(x => x.n === cab) || {};
-    const nm = IOS.names(s.rules, seqMap, [cab, 1, 1, 1]);
-    mv.head.replaceChildren(h('h2', {}, nm.cabinet), h('span', { class: 'chip' }, `${c.ciocs || 0} CIOCs`), h('span', { class: 'chip' }, `${c.bpUsed || 0} of ${s.rules.k * 8} baseplates used`), h('span', { class: 'chip ok' }, `${c.fill || 0}% full`), h('span', { class: 'chip' }, `${c.bpEmpty || 0} spare baseplates`), h('span', { class: 'cap' }, `System cabinet ${nm.system}`),
-      h('span', { style: { flex: 1 } }),
-      revMode ? seg([['changes', 'Changes'], ['B', 'Rev B'], ['A', 'Rev A']], s.revView, v => { s.revView = v; App.go(5); }, 'Revision view') : (s.step === 3 && !s.dirty ? h('button', { class: 'btn primary', onclick: () => App.go(4) }, 'Report + TQs') : null));
-    MAP.render(mv.host, { layout, cab, seqMap, rules: s.rules, rev, freed: rev ? freedSet() : null, selected: s.sel, onSelect: App.selectCell, tipText: App.tipText });
+    const nm = IOS.names(s.rules, seqMap, [cab, 1, 1, 1]); const mr = App.mapRules();
+    const list = App.cabinets(); const idx = list.findIndex(x => x.n === cab);
+    mv.head.replaceChildren(...[h('div', { class: 'ttl' }, h('h2', {}, nm.cabinet), h('div', { class: 'sub' }, `Cabinet ${idx + 1} of ${list.length}. `, mr.ab ? h('b', {}, 'Red dashed line: A and B never share a CIOC.') : 'A and B separation is off.')),
+      revMode ? seg([['changes', 'Changes'], ['B', 'Rev B'], ['A', 'Rev A']], s.revView, v => { s.revView = v; App.go(5); }, 'Revision view') : null,
+      h('button', { class: 'btn navbtn', disabled: idx <= 0, onclick: () => App.stepCab(-1), 'aria-label': 'Previous cabinet' }, 'Prev'),
+      h('button', { class: 'btn navbtn', disabled: idx >= list.length - 1, onclick: () => App.stepCab(1), 'aria-label': 'Next cabinet' }, 'Next')].filter(Boolean));
+    MAP.render(mv.host, { layout, cab, seqMap, rules: mr, rev, freed: rev ? freedSet() : null, selected: s.sel, hiCable: s.hiCable, onSelect: App.selectCell, tipText: App.tipText });
+    mv.legend.replaceChildren(legend(rev));
     // cables table
     const blocks = layout.blocks.filter(b => b.start[0] === cab).sort((a, b) => a.start[1] - b.start[1] || a.start[2] - b.start[2] || a.start[3] - b.start[3]);
     mv.table.replaceChildren(h('div', { class: 'tbl-wrap', style: { maxHeight: '300px' } }, h('table', {}, h('thead', {}, h('tr', {}, ['Cable', 'Group · side', 'CIOC', 'Baseplates', 'Slots', 'Signals', 'IO'].map(x => h('th', {}, x)))),
@@ -308,7 +311,7 @@
     const list = stageList(stages); const counter = h('div', { class: 'cap', style: { padding: '0 16px 14px 46px' }, id: 'runct' });
     const panel = h('div', { class: 'panel' }, h('div', { class: 'panel-h' }, h('div', {}, h('h2', {}, 'Allocating'), h('div', { class: 'cap' }, `${fmt(D.meta.rowsRead - D.stats.blocked)} signals under ${App.ruleCount()} rules`))), list.el);
     curRun = { panel, list, counter };
-    $('#work').replaceChildren(panel); $('#left').replaceChildren(h('div', { class: 'list-h' }, 'Cabinets'), h('div', { class: 'pad empty' }, 'Allocating…')); $('#right').replaceChildren(h('h3', {}, 'Details'), h('p', { class: 'empty' }, 'Available when the run finishes.'));
+    $('#work').replaceChildren(panel); $('#left').replaceChildren(h('div', { class: 'list-h' }, h('span', {}, 'Cabinets')), h('div', { class: 'pad empty' }, 'Allocating…')); $('#right').replaceChildren(h('section', { class: 'panel slotcard' }, h('div', { class: 'lbl' }, 'Selected slot'), h('p', { class: 'empty' }, 'Available when the run finishes.')));
   }
   function stage(i, state, meta) { if (curRun) curRun.list.set(i, state, meta); }
 
@@ -320,7 +323,7 @@
     const tabs = [['check', 'Rule check'], ['tq', 'TQ register'], ['sum', 'Summary']];
     const tqs = App.baseTqs(); const open = App.openCount(tqs);
     const bar = h('div', { class: 'tabs', role: 'tablist' }, tabs.map(([k, t]) => h('button', { role: 'tab', 'aria-selected': String(s.reportTab === k), onclick: () => { s.reportTab = k; if (k !== 'tq') s.tq.sel = null; App.go(4); } }, t + (k === 'tq' ? ` (${open})` : ''))), h('span', { class: 'sp' }),
-      h('div', { class: 'row', style: { padding: '5px 4px' } }, h('button', { class: 'btn small', onclick: () => dlTq(tqs) }, 'TQ register'), h('button', { class: 'btn primary small', onclick: () => dlAlloc(tqs) }, 'Download Excel')));
+      h('div', { class: 'row', style: { padding: '5px 4px' } }, h('button', { class: 'btn small', onclick: () => dlTq(tqs) }, 'TQ register'), h('button', { class: 'btn primary small', onclick: () => App.exportExcel() }, 'Download Excel')));
     const body = h('div', { class: 'panel', style: { borderTopLeftRadius: 0, borderTopRightRadius: 0, borderTop: 0 } });
     if (s.dirty) root.append(h('div', { class: 'banner' }, h('span', { class: 'sp' }, 'Rules changed since this run. The report shows the earlier result.'), h('button', { class: 'btn primary small', onclick: () => App.runAllocation({ to: 4, fast: true }) }, 'Run allocation')));
     if (s.reportTab === 'check') body.append(reportCheck(scn));
@@ -374,7 +377,7 @@
 
   function reportSummary(scn) {
     const s = st(); const r = s.rules;
-    const kp = [['Cabinets', scn.cabs.length, `lower bound ${scn.lowerBound}`], ['CIOCs', scn.ciocs, `${scn.cabs.length ? (scn.ciocs / scn.cabs.length).toFixed(1) : 0} per cabinet`], ['Average fill', scn.avgFill + '%', 'of usable slots'], ['Spare baseplates', scn.spareBp, `at least ${App.reserve()} per cabinet`], ['Signals placed', fmt(scn.placedSignals), `${fmt(D.meta.rowsRead - scn.placedSignals)} queried`]];
+    const kp = [['Cabinets', scn.cabs.length, `lower bound ${scn.lowerBound}`], ['CIOCs', scn.ciocs, `${scn.cabs.length ? (scn.ciocs / scn.cabs.length).toFixed(1) : 0} per cabinet`], ['Average fill', (App.cabinets().length ? Math.round(10 * App.cabinets().reduce((a, c) => a + c.fill, 0) / App.cabinets().length) / 10 : 0) + '%', 'of CHARM slots'], ['Spare baseplates', scn.spareBp, `at least ${App.reserve()} per cabinet`], ['Signals placed', fmt(scn.placedSignals), `${fmt(D.meta.rowsRead - scn.placedSignals)} queried`]];
     const whatif = h('div', { class: 'pad', style: { borderTop: '1px solid var(--line)' } }, h('h3', { style: { marginBottom: '8px' } }, 'What if'),
       h('div', { class: 'row', style: { gap: '20px' } },
         h('div', { class: 'row' }, h('span', { class: 'cap' }, 'Spare'), seg([[0, 'Off'], [10, '10%'], [20, '20%']], r.spareOn ? r.spare : 0, v => { r.spareOn = v > 0; if (v) r.spare = v; App.runAllocation({ to: 4, fast: true }); }, 'Spare percent')),
@@ -383,7 +386,7 @@
       h('div', { class: 'cap', style: { marginTop: '8px' } }, `Cabinets needed for each CIOC sharing preset with the other settings kept: Class ${scn.compare.class} · Group ${scn.compare.group} · Any ${scn.compare.any}.`));
     return h('div', {}, h('div', { class: 'kpis' }, kp.map(([c, v, x]) => h('div', { class: 'kpi' }, h('span', { class: 'cap' }, c), h('div', { class: 'v' }, v), h('span', { class: 'cap' }, x)))),
       h('div', { class: 'tbl-wrap', style: { maxHeight: 'none' } }, h('table', {}, h('thead', {}, h('tr', {}, ['Cabinet', 'CIOCs', 'Baseplates used', 'Spare baseplates', 'Slots used', 'Fill', 'Signals', 'Groups', 'Sides per CIOC'].map(x => h('th', {}, x)))),
-        h('tbody', {}, scn.cabs.map(c => h('tr', { class: 'click', onclick: () => { s.cab = c.n; s.sel = null; App.go(3); } }, h('td', { class: 'mono' }, App.cabName(c.n)), h('td', { class: 'num' }, c.ciocs), h('td', { class: 'num' }, c.bpUsed), h('td', { class: 'num' }, c.bpEmpty), h('td', { class: 'num' }, `${c.slots} / ${c.usable}`), h('td', {}, h('div', { class: 'conf' }, h('div', { class: 'bar thin' }, h('i', { style: { width: Math.min(100, c.fill) + '%' } })), h('span', { style: { width: '44px' } }, c.fill + '%'))), h('td', { class: 'num' }, c.signals), h('td', { class: 'mono' }, c.groups.join(', ') || '–'), h('td', { class: 'mono muted' }, c.sides.map(x => x || '·').join(' | '))))))), whatif);
+        h('tbody', {}, App.cabinets().map(c => h('tr', { class: 'click', onclick: () => { s.cab = c.n; s.sel = null; App.go(3); } }, h('td', { class: 'mono' }, App.cabName(c.n)), h('td', { class: 'num' }, c.ciocs), h('td', { class: 'num' }, c.bpUsed), h('td', { class: 'num' }, c.bpEmpty), h('td', { class: 'num' }, `${c.slots} / ${App.capSlots()}`), h('td', {}, h('div', { class: 'conf' }, h('div', { class: 'bar thin' }, h('i', { style: { width: Math.min(100, c.fill) + '%' } })), h('span', { style: { width: '54px' } }, c.fill + '%'))), h('td', { class: 'num' }, c.signals), h('td', { class: 'mono' }, c.groups.join(', ') || '–'), h('td', { class: 'mono muted' }, c.sides.map(x => x || '·').join(' | '))))))), whatif);
   }
 
   // ======================================================================

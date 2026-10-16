@@ -34,8 +34,8 @@
     XLSX.utils.book_append_sheet(wb, tqSheet(tqs, 'A'), 'TQ Register');
     const chk = [['Check', 'Result', 'Checked', 'Violations', 'Note'], ...scn.check.map(k => [k.name, k.status, k.checked, k.violations, k.note || ''])];
     XLSX.utils.book_append_sheet(wb, Object.assign(XLSX.utils.aoa_to_sheet(chk), { '!cols': [{ wch: 52 }, { wch: 8 }, { wch: 10 }, { wch: 10 }, { wch: 60 }] }), 'Rule Check');
-    const sum = [['Cabinet', 'CIOCs', 'Baseplates used', 'Empty baseplates', 'Slots used', 'Usable slots', 'Fill %', 'Signals', 'Groups', 'Sides per CIOC']];
-    scn.cabs.forEach(cab => sum.push([IOS.fmtName(rules.names.cabinet, { area: rules.names.area, unit: rules.names.unit, seq: cab.n }), cab.ciocs, cab.bpUsed, cab.bpEmpty, cab.slots, cab.usable, cab.fill, cab.signals, cab.groups.join(', '), cab.sides.map(x => x || '-').join(' | ')]));
+    const capS = (c.k || rules.k) * 96; const sum = [['Cabinet', 'CIOCs', 'Baseplates used', 'Empty baseplates', 'Slots used', 'Slot capacity', 'Fill %', 'Signals', 'Groups', 'Sides per CIOC']];
+    scn.cabs.forEach(cab => sum.push([IOS.fmtName(rules.names.cabinet, { area: rules.names.area, unit: rules.names.unit, seq: cab.n }), cab.ciocs, cab.bpUsed, cab.bpEmpty, cab.slots, capS, Math.round(1000 * cab.slots / capS) / 10, cab.signals, cab.groups.join(', '), cab.sides.map(x => x || '-').join(' | ')]));
     sum.push([]); sum.push(['Lower bound on cabinets', scn.lowerBound]); sum.push(['CIOC sharing: Class / Group / Any', `${scn.compare.class} / ${scn.compare.group} / ${scn.compare.any} cabinets`]);
     XLSX.utils.book_append_sheet(wb, Object.assign(XLSX.utils.aoa_to_sheet(sum), { '!cols': [24, 8, 14, 14, 10, 12, 8, 9, 24, 24].map(w => ({ wch: w })) }), 'Summary');
     const sp = [['Marshalling Cabinet', 'CIOC', 'Baseplate', 'CHARM Slot', 'Cable', 'Pair']];
