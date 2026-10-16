@@ -49,7 +49,7 @@
       const box = h('div', { class: 'drop', tabindex: '0', role: 'button', 'aria-label': 'Attach ' + label, onclick: () => input.click(), onkeydown: e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click(); } } },
         h('div', { class: 'big' }, h('span', { html: '<svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10 14V4M6 8l4-4 4 4M4 16h12"/></svg>' })),
         h('h3', {}, label),
-        h('span', { class: 'muted' }, kind === 'mdb' ? "Drop the customer's IO list here to start. One or many files." : 'Drop the template the tool must fill. Columns are matched by header name.'),
+        h('span', { class: 'muted' }, kind === 'mdb' ? "Drop the customer's IO list here." : 'Drop the template to fill.'),
         h('span', { class: 'cap' }, 'or click to browse · .xlsx .xls .csv'), input);
       ['dragenter', 'dragover'].forEach(ev => box.addEventListener(ev, e => { e.preventDefault(); box.classList.add('over'); }));
       ['dragleave', 'drop'].forEach(ev => box.addEventListener(ev, e => { e.preventDefault(); box.classList.remove('over'); }));
@@ -77,7 +77,7 @@
       ...D.preview.slice(0, 5).map((r, i) => h('tr', {}, h('td', { class: 'rn' }, 4 + i), r.map(c => h('td', {}, c)))),
     ];
     return h('div', { class: 'panel fade-in', style: { marginBottom: '12px' } },
-      h('div', { class: 'panel-h' }, h('h3', {}, 'Sheet and header row'), h('div', { class: 'row' }, ...m.sheets.map(s => h('span', { class: 'chip' + (s.used ? ' ok' : ''), title: s.used ? 'Read' : 'Not read: no Tag column' }, s.name + (s.used ? ` · ${fmt(s.rows)} rows` : ' · not read'))), h('span', { class: 'cap' }, 'Header row 3 found automatically'))),
+      h('div', { class: 'panel-h' }, h('h3', {}, 'Sheet and header row'), h('div', { class: 'row' }, ...m.sheets.map(s => h('span', { class: 'chip' + (s.used ? ' ok' : ''), title: s.used ? 'Read' : 'Not read: no Tag column' }, s.name + (s.used ? ` · ${fmt(s.rows)} rows` : ' · not read'))))),
       h('div', { class: 'sheetprev' }, h('table', {}, h('tbody', {}, head, rows))));
   }
 
@@ -101,7 +101,7 @@
     return h('div', { class: 'panel fade-in', style: { marginBottom: '12px' } },
       h('div', { class: 'panel-h' }, h('h3', {}, 'Columns in the allocation template'), h('span', { class: 'chip ok' }, `${D.tmplCols.length} of ${D.tmplCols.length} matched`)),
       h('div', { class: 'pad' }, h('div', { class: 'row' }, ...D.tmplCols.map(c => h('span', { class: 'chip mono', title: Math.round(c.conf * 100) + '% match' }, c.header + ' → ' + c.field)))),
-      h('div', { class: 'pad cap', style: { paddingTop: 0 } }, 'The writer finds each column by its header, so a different template layout needs no code change.'));
+    );
   }
 
   function dataChecks() {
@@ -109,11 +109,11 @@
     const list = Object.values(by).sort((a, b) => ({ blocking: 0, hardware: 1, info: 2 }[a.sev] - { blocking: 0, hardware: 1, info: 2 }[b.sev]) || nat(a.code, b.code));
     const block = D.dataTqs.filter(t => t.severity === 'blocking').length, hw = D.dataTqs.filter(t => t.severity === 'hardware').length;
     return h('div', { class: 'panel fade-in', id: 'checks' },
-      h('div', { class: 'panel-h' }, h('h3', {}, 'Data checks'), h('span', { class: 'cap' }, `${D.dataTqs.length} TQs raised before any allocation`)),
+      h('div', { class: 'panel-h' }, h('h3', {}, 'Data checks'), h('span', { class: 'cap' }, `${D.dataTqs.length} TQs`)),
       h('div', { class: 'kpis' }, [['Signals read', fmt(D.meta.rowsRead)], ['Cables', D.stats.cables], ['IO groups', D.stats.groups], ['Blocking TQs', block], ['Hardware TQs', hw]].map(([c, v], i) => h('div', { class: 'kpi' }, h('span', { class: 'cap' }, c), h('div', { class: 'v', style: i >= 3 && v ? { color: 'var(--warn)' } : null }, v)))),
       h('div', { class: 'tbl-wrap' }, h('table', {}, h('thead', {}, h('tr', {}, ['Code', 'Severity', 'Found', 'Meaning', 'What the tool does'].map(x => h('th', {}, x)))),
         h('tbody', {}, list.map(r => h('tr', {}, h('td', { class: 'mono' }, r.code), h('td', {}, chipSev(r.sev)), h('td', { class: 'num' }, r.n), h('td', {}, CODE_NAME[r.code] || r.code), h('td', { class: 'muted' }, SEV_TEXT[r.sev])))))),
-      h('div', { class: 'pad cap' }, 'Blocked signals stay out of the allocation until they are answered. Every other signal goes on to the rules.'));
+    );
   }
 
   function drawUpload() {
@@ -127,7 +127,7 @@
       const need = s.map.filter(m => !m.accepted).length;
       if (!s.ingested) {
         kids.push(h('div', { class: 'panel pad', style: { display: 'flex', alignItems: 'center', gap: '12px' } },
-          h('span', { class: 'muted' }, need ? `Accept ${need} column${need > 1 ? 's' : ''} above to continue.` : 'Columns confirmed. Reading the signals takes a few seconds.'),
+          h('span', { class: 'muted' }, need ? `Accept ${need} column${need > 1 ? 's' : ''} above to continue.` : 'Columns confirmed.'),
           h('span', { style: { flex: 1 } }),
           s.proc && s.proc.running ? null : h('button', { class: 'btn primary', disabled: !!need, onclick: confirmColumns }, 'Confirm columns')));
       }
@@ -138,7 +138,7 @@
     }
     if (s.ingested) {
       kids.push(dataChecks());
-      kids.push(h('div', { class: 'panel pad fade-in', style: { display: 'flex', alignItems: 'center', gap: '12px', marginTop: '12px' } }, h('span', { class: 'muted' }, 'Next: check the rules the allocation will follow.'), h('span', { style: { flex: 1 } }), h('button', { class: 'btn primary', onclick: () => App.go(2) }, 'Set rules')));
+      kids.push(h('div', { class: 'panel pad fade-in', style: { display: 'flex', alignItems: 'center', gap: '12px', marginTop: '12px' } }, h('span', { style: { flex: 1 } }), h('button', { class: 'btn primary', onclick: () => App.go(2) }, 'Set rules')));
     }
     const sc = upRoot.parentNode ? upRoot.parentNode.scrollTop : 0;
     upRoot.replaceChildren(...kids);
@@ -181,7 +181,7 @@
           h('div', { class: 'row' }, h('label', {}, 'Standard sizes'), ...[2, 6, 12, 24].map(x => h('span', { class: 'pill' }, x))),
           h('div', { class: 'row' }, h('label', {}, 'Size when missing'), h('span', { class: 'pill' }, 'infer from highest pair'), h('span', { class: 'cap' }, 'raises D08')),
           h('div', { class: 'row' }, h('label', {}, 'A 24-pair cable'), h('span', { class: 'cap' }, 'starts at slot 1 and fills 2 baseplates'))] }),
-        ruleCard({ id: 'groups', title: 'Keep groups together', on: r.grp, onToggle: v => { r.grp = v; redraw(); }, summary: 'Signals with the same IO group stay in the same cabinets, in sequence. A group that fits in one cabinet is never split. Signals with no group fill free slots.', body: [
+        ruleCard({ id: 'groups', title: 'Keep groups together', on: r.grp, onToggle: v => { r.grp = v; redraw(); }, summary: 'Signals with the same IO group stay in the same cabinets, in sequence.', body: [
           h('div', { class: 'row' }, h('label', {}, 'Field'), h('span', { class: 'pill' }, 'IO group')),
           h('div', { class: 'row' }, h('label', {}, 'Span'), h('span', { class: 'pill' }, 'only if too big')),
           h('div', { class: 'row' }, h('label', {}, 'Order'), h('span', { class: 'pill' }, 'natural (G2 before G10)'))] }),
@@ -203,7 +203,7 @@
       ];
       return [
         h('div', { class: 'panel', style: { marginBottom: '12px' } }, h('div', { class: 'panel-h' }, h('div', {}, h('h2', {}, 'Set rules'), h('div', { class: 'cap' }, `Rule set default-deltav · ${App.ruleCount()} rules on · ${diff.length ? 'changed: ' + diff.join(', ') : 'no changes from the default'}`)),
-          h('div', { class: 'row' }, h('button', { class: 'btn', onclick: () => { st().rules = App.defaultRules(); App.go(2); toast('Rules reset to the default'); } }, 'Reset'),
+          h('div', { class: 'row' }, h('button', { class: 'btn', onclick: () => { st().rules = App.defaultRules(); App.rulesChanged(); App.go(2); toast('Rules reset'); } }, 'Reset'),
             h('label', { class: 'btn', style: { display: 'inline-flex', alignItems: 'center' } }, 'Load rules', h('input', { type: 'file', hidden: true, accept: '.json', onchange: loadRules })),
             h('button', { class: 'btn primary', onclick: saveRules }, 'Save rules')))),
         h('div', { class: 'rules' }, cards),
@@ -224,7 +224,7 @@
       err.textContent = bad.length ? 'R07: unknown token ' + bad.join(', ') + '. Use <Area> <Unit> <Seq:N> <CIOC no:N> <n>.' : '';
     };
     const field = (k, label, mono) => h('div', { class: 'row' }, h('label', {}, label), h('input', { class: 'txt mono', style: { flex: 1, minWidth: '180px' }, value: nm[k], 'aria-label': label, oninput: e => { nm[k] = e.target.value; upd(); App.rulesChanged(); if (st().run) App.renderDetail(); } }));
-    const card = ruleCard({ id: 'names', title: 'Names', wide: true, locked: true, summary: 'Every name comes from these patterns. Tokens: <Area> <Unit> <Seq:N> <CIOC no:N> <n>. :N pads with zeros.', body: [
+    const card = ruleCard({ id: 'names', title: 'Names', wide: true, locked: true, summary: 'Tokens: <Area> <Unit> <Seq:N> <CIOC no:N> <n>. :N pads with zeros.', body: [
       h('div', { class: 'row' }, field('area', 'Area'), field('unit', 'Unit')),
       field('cabinet', 'Marshalling cabinet'), field('cioc', 'CIOC'), field('baseplate', 'Baseplate'), field('controller', 'Controller'), field('system', 'System cabinet'), err, pv] });
     upd(); return card;
@@ -237,7 +237,7 @@
   }
   function loadRules(e) {
     const f = e.target.files[0]; if (!f) return;
-    f.text().then(t => { try { const j = JSON.parse(t); if (j.rules && j.rules.names) { st().rules = Object.assign(App.defaultRules(), j.rules); App.go(2); toast('Rule set loaded'); } else toast('That file is not a rule set'); } catch (x) { toast('That file is not a rule set'); } });
+    f.text().then(t => { try { const j = JSON.parse(t); if (j.rules && j.rules.names) { st().rules = Object.assign(App.defaultRules(), j.rules); App.rulesChanged(); App.go(2); toast('Rule set loaded'); } else toast('That file is not a rule set'); } catch (x) { toast('That file is not a rule set'); } });
   }
 
   // ======================================================================
@@ -251,7 +251,7 @@
     if (!s.run) {
       root.append(h('div', { class: 'panel' },
         h('div', { class: 'panel-h' }, h('div', {}, h('h2', {}, 'Allocate'), h('div', { class: 'cap' }, `${fmt(D.meta.rowsRead)} signals · ${App.ruleCount()} rules on · ${D.dataTqs.filter(t => t.severity === 'blocking').length} blocking TQs will be left out`))),
-        h('div', { class: 'pad' }, h('p', { style: { margin: '0 0 14px', maxWidth: '620px' } }, 'The allocation gives every signal a cabinet, CIOC, baseplate and CHARM slot under the rules you set. Anything it cannot place becomes a TQ that says why.'),
+        h('div', { class: 'pad' }, h('p', { style: { margin: '0 0 14px', maxWidth: '620px' } }, 'Every signal gets a cabinet, CIOC, baseplate and CHARM slot. Anything that cannot be placed becomes a TQ.'),
           h('div', { class: 'row', style: { marginBottom: '16px' } }, ...App.ruleDiff().length ? App.ruleDiff().map(x => h('span', { class: 'chip warn' }, x)) : [h('span', { class: 'chip ok' }, 'Default rule set')]),
           h('button', { class: 'btn primary', style: { height: '40px', padding: '0 22px' }, onclick: () => App.runAllocation() }, 'Run allocation'))));
       return root;
@@ -263,7 +263,7 @@
   function banners() {
     const s = st(), out = [], scn = s.run.scn;
     if (s.dirty) out.push(h('div', { class: 'banner' }, h('span', { class: 'sp' }, 'Rules changed since this run. The map and report show the earlier result.'), h('button', { class: 'btn primary small', onclick: () => App.runAllocation() }, 'Run allocation')));
-    if (scn.unplacedSignals) out.push(h('div', { class: 'banner err' }, h('span', { class: 'sp' }, `${fmt(scn.unplacedSignals)} signals in ${scn.unp.length} cables could not be placed under the cabinet limit of ${D.limit}. A TQ explains why and what would fix it.`), h('button', { class: 'btn small', onclick: () => { st().reportTab = 'tq'; st().tq = { sev: 'all', code: 'C02', q: '', sel: null }; App.go(4); } }, 'Open the TQ')));
+    if (scn.unplacedSignals) out.push(h('div', { class: 'banner err' }, h('span', { class: 'sp' }, `${fmt(scn.unplacedSignals)} signals in ${scn.unp.length} cables could not be placed under the cabinet limit of ${D.limit}.`), h('button', { class: 'btn small', onclick: () => { st().reportTab = 'tq'; st().tq = { sev: 'all', code: 'C02', q: '', sel: null }; App.go(4); } }, 'Open the TQ')));
     return out;
   }
 
@@ -279,7 +279,7 @@
     if (!cabs.find(c => c.n === s.cab)) s.cab = cabs[0].n;
     mv = { head: h('div', { class: 'maphead' }), host: h('div', { class: 'mapwrap' }), table: h('div'), legend: h('div') };
     const top = h('div', { class: 'panel mapcard' }, mv.head, mv.host, mv.legend);
-    const tbl = h('div', { class: 'panel', style: { marginTop: '16px' } }, h('div', { class: 'panel-h' }, h('h3', {}, 'Cables in this cabinet'), h('span', { class: 'cap' }, 'The same content as the map, as a table')), mv.table);
+    const tbl = h('div', { class: 'panel', style: { marginTop: '16px' } }, h('div', { class: 'panel-h' }, h('h3', {}, 'Cables in this cabinet')), mv.table);
     const wrap = h('div', {}, top, tbl);
     drawMapParts(revMode);
     return wrap;
@@ -308,9 +308,9 @@
   function refreshMap() { drawMapParts(App.state.step === 5 && App.state.rev); }
 
   function showRun(stages, scn) {
-    const list = stageList(stages); const counter = h('div', { class: 'cap', style: { padding: '0 16px 14px 46px' }, id: 'runct' });
+    const list = stageList(stages);
     const panel = h('div', { class: 'panel' }, h('div', { class: 'panel-h' }, h('div', {}, h('h2', {}, 'Allocating'), h('div', { class: 'cap' }, `${fmt(D.meta.rowsRead - D.stats.blocked)} signals under ${App.ruleCount()} rules`))), list.el);
-    curRun = { panel, list, counter };
+    curRun = { panel, list };
     $('#work').replaceChildren(panel); $('#left').replaceChildren(h('div', { class: 'list-h' }, h('span', {}, 'Cabinets')), h('div', { class: 'pad empty' }, 'Allocating…')); $('#right').replaceChildren(h('section', { class: 'panel slotcard' }, h('div', { class: 'lbl' }, 'Selected slot'), h('p', { class: 'empty' }, 'Available when the run finishes.')));
   }
   function stage(i, state, meta) { if (curRun) curRun.list.set(i, state, meta); }
@@ -341,7 +341,7 @@
   }
   function reportCheck(scn) {
     const v = scn.check.reduce((a, c) => a + c.violations, 0); const on = scn.check.filter(c => c.status !== 'off').length;
-    return h('div', {}, h('div', { class: 'pad' }, h('div', { class: 'banner ' + (v ? 'err' : 'good'), style: { margin: 0 } }, h('b', { style: { fontFamily: 'var(--mono)', fontSize: '18px' } }, `${v} violations`), h('span', { class: 'sp' }, `${on} checks run on the Excel file that was just written. Signals in ${fmt(D.meta.rowsRead)} = placed ${fmt(scn.placedSignals)} + queried ${fmt(D.meta.rowsRead - scn.placedSignals)}.`))), checkTable(scn.check));
+    return h('div', {}, h('div', { class: 'pad' }, h('div', { class: 'banner ' + (v ? 'err' : 'good'), style: { margin: 0 } }, h('b', { style: { fontFamily: 'var(--mono)', fontSize: '18px' } }, `${v} violations`), h('span', { class: 'sp' }, `${on} checks run on the written Excel file. ${fmt(D.meta.rowsRead)} signals = ${fmt(scn.placedSignals)} placed + ${fmt(D.meta.rowsRead - scn.placedSignals)} queried.`))), checkTable(scn.check));
   }
 
   function reportTq(tqs) {
@@ -372,7 +372,7 @@
   function applyOption(o) {
     const r = st().rules, x = o.set;
     r.spareOn = x.sparePct > 0; if (x.sparePct > 0) r.spare = x.sparePct; r.k = x.K; r.preset = x.preset; r.max = x.max && x.max <= D.limit ? D.limit : 0;
-    toast('Option applied. Re-running the allocation.'); st().tq.sel = null; st().tq.code = 'all'; App.runAllocation({ to: 4, fast: true });
+    toast('Option applied.'); st().tq.sel = null; st().tq.code = 'all'; App.runAllocation({ to: 4, fast: true });
   }
 
   function reportSummary(scn) {
@@ -383,7 +383,7 @@
         h('div', { class: 'row' }, h('span', { class: 'cap' }, 'Spare'), seg([[0, 'Off'], [10, '10%'], [20, '20%']], r.spareOn ? r.spare : 0, v => { r.spareOn = v > 0; if (v) r.spare = v; App.runAllocation({ to: 4, fast: true }); }, 'Spare percent')),
         h('div', { class: 'row' }, h('span', { class: 'cap' }, 'CIOCs per cabinet'), seg([[3, '3'], [4, '4']], r.k, v => { r.k = v; App.runAllocation({ to: 4, fast: true }); }, 'CIOCs per cabinet')),
         h('div', { class: 'row' }, h('span', { class: 'cap' }, 'CIOC sharing'), seg([['class', 'Class'], ['group', 'Group'], ['any', 'Any']], r.preset, v => { r.preset = v; App.runAllocation({ to: 4, fast: true }); }, 'CIOC sharing'))),
-      h('div', { class: 'cap', style: { marginTop: '8px' } }, `Cabinets needed for each CIOC sharing preset with the other settings kept: Class ${scn.compare.class} · Group ${scn.compare.group} · Any ${scn.compare.any}.`));
+      h('div', { class: 'cap', style: { marginTop: '8px' } }, `Cabinets for each CIOC sharing preset: Class ${scn.compare.class} · Group ${scn.compare.group} · Any ${scn.compare.any}.`));
     return h('div', {}, h('div', { class: 'kpis' }, kp.map(([c, v, x]) => h('div', { class: 'kpi' }, h('span', { class: 'cap' }, c), h('div', { class: 'v' }, v), h('span', { class: 'cap' }, x)))),
       h('div', { class: 'tbl-wrap', style: { maxHeight: 'none' } }, h('table', {}, h('thead', {}, h('tr', {}, ['Cabinet', 'CIOCs', 'Baseplates used', 'Spare baseplates', 'Slots used', 'Fill', 'Signals', 'Groups', 'Sides per CIOC'].map(x => h('th', {}, x)))),
         h('tbody', {}, App.cabinets().map(c => h('tr', { class: 'click', onclick: () => { s.cab = c.n; s.sel = null; App.go(3); } }, h('td', { class: 'mono' }, App.cabName(c.n)), h('td', { class: 'num' }, c.ciocs), h('td', { class: 'num' }, c.bpUsed), h('td', { class: 'num' }, c.bpEmpty), h('td', { class: 'num' }, `${c.slots} / ${App.capSlots()}`), h('td', {}, h('div', { class: 'conf' }, h('div', { class: 'bar thin' }, h('i', { style: { width: Math.min(100, c.fill) + '%' } })), h('span', { style: { width: '54px' } }, c.fill + '%'))), h('td', { class: 'num' }, c.signals), h('td', { class: 'mono' }, c.groups.join(', ') || '–'), h('td', { class: 'mono muted' }, c.sides.map(x => x || '·').join(' | '))))))), whatif);
@@ -397,27 +397,31 @@
     const s = st(); const root = h('div');
     if (s.revRunning && curRev) return curRev.panel;
     if (s.rev) return reviseResults();
+    if (s.run.key !== D.baseKey) {
+      return h('div', { class: 'panel pad' }, h('h2', {}, 'Revise'), h('p', { style: { maxWidth: '560px' } }, 'The revision is checked against the default rule set. This run used different rules.'),
+        h('button', { class: 'btn primary', onclick: () => { s.rules = App.defaultRules(); s.revFile = null; App.runAllocation({ to: 5, fast: true }); } }, 'Use default rules and re-run'));
+    }
     // drop zone, then diff preview
     const f = s.revFile; const I = D.revision.impact;
     const input = h('input', { type: 'file', hidden: true, accept: '.xlsx,.xls,.xlsm,.csv', onchange: e => { if (e.target.files[0]) attachRev(e.target.files[0]); } });
     if (!f) {
       const box = h('div', { class: 'drop', style: { margin: 0 }, tabindex: '0', role: 'button', 'aria-label': 'Attach the Rev B file', onclick: () => input.click(), onkeydown: e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click(); } } },
         h('div', { class: 'big' }, h('span', { html: '<svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10 14V4M6 8l4-4 4 4M4 16h12"/></svg>' })),
-        h('h3', {}, 'Rev B of the IO list (Excel)'), h('span', { class: 'muted' }, 'Drop the new revision here. It is compared with Rev A tag by tag, and unchanged signals stay where they are.'), h('span', { class: 'cap' }, 'or click to browse'), input);
+        h('h3', {}, 'Rev B of the IO list (Excel)'), h('span', { class: 'muted' }, 'Drop the new revision here.'), h('span', { class: 'cap' }, 'or click to browse'), input);
       ['dragenter', 'dragover'].forEach(ev => box.addEventListener(ev, e => { e.preventDefault(); box.classList.add('over'); }));
       ['dragleave', 'drop'].forEach(ev => box.addEventListener(ev, e => { e.preventDefault(); box.classList.remove('over'); }));
       box.addEventListener('drop', e => { const fl = e.dataTransfer && e.dataTransfer.files[0]; if (fl) attachRev(fl); });
-      root.append(h('div', { class: 'panel-h', style: { padding: '0 0 12px', border: 0 } }, h('div', {}, h('h2', {}, 'Revise'), h('div', { class: 'cap' }, `Rev A is allocated: ${App.cabinets().length} cabinets, ${fmt(st().run.scn.placedSignals)} signals placed.`))), box,
+      root.append(h('div', { class: 'panel-h', style: { padding: '0 0 12px', border: 0 } }, h('div', {}, h('h2', {}, 'Revise'), h('div', { class: 'cap' }, `Rev A: ${App.cabinets().length} cabinets, ${fmt(st().run.scn.placedSignals)} signals placed.`))), box,
         h('div', { class: 'cap', style: { margin: '10px 2px' } }, 'No Rev B at hand? ', h('button', { class: 'link', onclick: () => attachRev() }, 'Use the sample Rev B'), '.'));
       return root;
     }
     root.append(h('div', { class: 'panel', style: { marginBottom: '12px' } }, h('div', { class: 'pad' }, h('div', { class: 'cap' }, 'Rev B of the IO list (Excel)'), h('div', { class: 'fname', style: { margin: '4px 0 8px' } }, f.phase === 'compared' ? h('span', { class: 'ok' }, '✓') : null, h('span', {}, f.name), h('span', { class: 'muted' }, fileSize(f.size))),
-      f.phase === 'reading' ? h('div', {}, h('div', { class: 'bar' }, h('i', { id: 'bar-rev', style: { width: f.pct + '%' } })), h('span', { class: 'cap' }, 'Reading file…')) : h('div', { class: 'facts' }, h('span', {}, h('b', {}, fmt(D.revision.rowsRead)), ' rows on sheet IO List'), h('span', {}, 'Columns matched from the Rev A mapping'), h('span', {}, 'Rev A: ', h('b', {}, fmt(D.meta.rowsRead)), ' rows')))));
+      f.phase === 'reading' ? h('div', {}, h('div', { class: 'bar' }, h('i', { id: 'bar-rev', style: { width: f.pct + '%' } })), h('span', { class: 'cap' }, 'Reading file…')) : h('div', { class: 'facts' }, h('span', {}, h('b', {}, fmt(D.revision.rowsRead)), ' rows on sheet IO List'), h('span', {}, 'Rev A: ', h('b', {}, fmt(D.meta.rowsRead)), ' rows')))));
     if (f.phase === 'compared') {
       const kp = [['New tags', I.added.length, 'add'], ['Removed tags', I.deleted.length, 'del'], ['IO type changed', I.swaps.length, ''], ['Renamed', I.renamed.length, ''], ['New cables', D.revision.newCables, 'add']];
-      root.append(h('div', { class: 'panel fade-in' }, h('div', { class: 'panel-h' }, h('h3', {}, 'What changed in the file'), h('span', { class: 'cap' }, 'Found by comparing tags, cables and pairs')),
+      root.append(h('div', { class: 'panel fade-in' }, h('div', { class: 'panel-h' }, h('h3', {}, 'What changed in the file')),
         h('div', { class: 'kpis' }, kp.map(([c, v, k]) => h('div', { class: 'kpi ' + k }, h('span', { class: 'cap' }, c), h('div', { class: 'v' }, v)))),
-        h('div', { class: 'pad', style: { display: 'flex', alignItems: 'center', gap: '12px', borderTop: '1px solid var(--line)' } }, h('span', { class: 'muted' }, 'Next: place the changes without moving what did not change.'), h('span', { style: { flex: 1 } }), h('button', { class: 'btn primary', onclick: () => App.runRevision() }, 'Run revision'))));
+        h('div', { class: 'pad', style: { display: 'flex', alignItems: 'center', gap: '12px', borderTop: '1px solid var(--line)' } }, h('span', { style: { flex: 1 } }), h('button', { class: 'btn primary', onclick: () => App.runRevision() }, 'Run revision'))));
     }
     return root;
   }
@@ -427,7 +431,7 @@
     f.phase = 'comparing'; App.go(5); await sleep(700); f.phase = 'compared'; App.go(5);
   }
   function showRevRun(stages) {
-    const list = stageList(stages); const panel = h('div', { class: 'panel' }, h('div', { class: 'panel-h' }, h('div', {}, h('h2', {}, 'Running the revision'), h('div', { class: 'cap' }, 'Unchanged signals are pinned to their Rev A addresses first'))), list.el);
+    const list = stageList(stages); const panel = h('div', { class: 'panel' }, h('div', { class: 'panel-h' }, h('div', {}, h('h2', {}, 'Running the revision'))), list.el);
     curRev = { panel, list }; $('#work').replaceChildren(panel);
   }
   function revStage(i, state, meta) { if (curRev) curRev.list.set(i, state, meta); }
@@ -439,9 +443,9 @@
     root.append(h('div', { class: 'panel', style: { marginBottom: '12px' } },
       h('div', { class: 'panel-h' }, h('div', {}, h('h2', {}, 'Revision impact'), h('div', { class: 'cap' }, `Rev A → Rev B · ${R.touch.cabs} cabinets, ${R.touch.ciocs} CIOCs and ${R.touch.bps} baseplates touched`)), h('div', { class: 'row' }, h('button', { class: 'btn primary', onclick: dlImpact }, 'Download impact report'))),
       h('div', { class: 'kpis' }, kp.map(([c, v, k, code]) => h('div', { class: 'kpi ' + k }, h('span', { class: 'cap' }, c + ' · ' + code), h('div', { class: 'v' }, v)))),
-      h('div', { class: 'hero' }, h('div', { class: 'big' }, fmt(R.naiveMoved - I.moved.length)), h('div', {}, h('b', {}, 'moves avoided'), h('div', { class: 'cap' }, `A fresh re-run of Rev B would have moved ${fmt(R.naiveMoved)} of ${fmt(R.common)} signals that exist in both revisions. This revision moved ${I.moved.length}. Every unchanged signal kept its address.`)))));
-    if (R.tqs.length) root.append(h('div', { class: 'banner err' }, h('span', { class: 'sp' }, `${R.tqs.length} cable could not be placed. ${R.tqs[0].message}`), h('button', { class: 'btn small', onclick: () => { s.revTab = 'tqs'; App.go(5); } }, 'Open the TQ')));
-    if (s.revView !== 'A' || true) root.append(mapPanel(true));
+      h('div', { class: 'hero' }, h('div', { class: 'big' }, fmt(R.naiveMoved - I.moved.length)), h('div', {}, h('b', {}, 'moves avoided'), h('div', { class: 'cap' }, `A fresh re-run would have moved ${fmt(R.naiveMoved)} of ${fmt(R.common)} signals. This revision moved ${I.moved.length}.`)))));
+    if (R.tqs.length) root.append(h('div', { class: 'banner err' }, h('span', { class: 'sp' }, `${R.tqs.length} cable${R.tqs.length > 1 ? 's' : ''} could not be placed.`), h('button', { class: 'btn small', onclick: () => { s.revTab = 'tqs'; App.go(5); } }, 'Open the TQ')));
+    root.append(mapPanel(true));
     root.append(impactTabs());
     return root;
   }

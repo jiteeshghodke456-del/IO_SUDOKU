@@ -155,7 +155,7 @@
   }
   function renderCabList() {
     const L = $('#left'); const cabs = st.running ? [] : App.cabinets(); const rev = inRevView();
-    if (!cabs.length) { L.replaceChildren(h('div', { class: 'list-h' }, h('span', {}, 'Cabinets')), h('div', { class: 'pad empty' }, 'Run the allocation to see cabinets, fill and open TQs here.')); return; }
+    if (!cabs.length) { L.replaceChildren(h('div', { class: 'list-h' }, h('span', {}, 'Cabinets')), h('div', { class: 'pad empty' }, 'Run the allocation to see cabinets.')); return; }
     const tqc = cabTqCounts(); const per = rev && st.rev ? new Map(D.revision.perCab.map(p => [p.cab, p])) : null;
     const unp = !rev && st.run && st.run.scn.unplacedSignals ? st.run.scn.unplacedSignals : 0;
     L.replaceChildren(h('div', { class: 'list-h' }, h('span', {}, 'Cabinets'), h('span', { class: 'cap' }, `${cabs.length}, fill %`)),
@@ -201,7 +201,7 @@
   function slotCard() {
     const sel = st.sel; const i = sel && App.cellInfo(sel.cab, sel.key); const rev = inRevView();
     const card = h('section', { class: 'panel slotcard' }, h('div', { class: 'lbl' }, 'Selected slot'));
-    if (!i) { card.append(h('p', { class: 'empty' }, 'Click a slot on the map, or search for a tag, to see its CHARM, terminal block and address.')); return card; }
+    if (!i) { card.append(h('p', { class: 'empty' }, 'Click a slot on the map or search for a tag.')); return card; }
     if (!i.cell) { card.append(h('div', { class: 'tag' }, 'Free slot'), dl([['Cabinet', i.nm.cabinet], ['CIOC', i.nm.cioc], ['Baseplate', i.nm.baseplate], ['CHARM slot', `${i.s} of 12`]]), h('p', { class: 'cap', style: { marginTop: '12px' } }, 'Belongs to no cable.')); return card; }
     if (i.cell.t === 'sp') { card.append(h('div', { class: 'tag' }, 'Spare pair'), dl([['Cable, pair', `${i.cell.cable}, pair ${i.cell.pair}`], ['CIOC', i.nm.cioc], ['Baseplate', i.nm.baseplate], ['CHARM slot', `${i.s} of 12`]]), h('p', { class: 'cap', style: { marginTop: '12px' } }, 'Wired but unused. It keeps its slot.'), cableBtns(i.cell.cable, null)); return card; }
     const sg = i.cell.sig, hw = IOS.hwFor(st.rules, sg);
@@ -296,8 +296,10 @@
       VIEWS.stage(i, 'done', meta);
     }
     const layout = IOS.baseLayout(scn); const seqMap = IOS.seqBase(scn);
-    st.run = { key, scn, layout, seqMap, rules: clone(st.rules) };
-    st.dirty = false; st.running = false; st.cab = 1; st.done[3] = true; st.done[2] = true; st.done[1] = true;
+    // the rules this run used come from the result itself, so edits made while it was running cannot disagree with the map
+    const c = scn.cfg, used = clone(st.rules); used.k = c.K; used.ab = c.ab; used.grp = c.grp; used.preset = c.preset; used.max = c.max; used.spareOn = c.sparePct > 0; if (c.sparePct > 0) used.spare = c.sparePct;
+    st.run = { key, scn, layout, seqMap, rules: used };
+    st.dirty = App.scnKey() !== key; st.running = false; st.cab = 1; st.done[3] = true; st.done[2] = true; st.done[1] = true;
     await sleep(300);
     App.go(opts.to || 3); App.chrome(true); toast(`Allocation done in ${(scn.timeMs / 1000).toFixed(1)} s`);
   };
