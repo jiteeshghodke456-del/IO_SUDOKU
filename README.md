@@ -22,7 +22,7 @@ Open http://localhost:5173. Opening `index.html` directly also works.
 4. **Report + TQs.** Rule check, TQ register with options, per-cabinet summary, what-if controls, and the filled Excel workbook.
 5. **Revise.** Drop Rev B. See what was added, deleted, moved, swapped or renamed, which cabinets and drawings are hit, and how many moves were avoided.
 
-Press `/` to search for a tag or cable.
+Press `/` to search for a tag or cable. The buttons at the right of the step bar change with the step: Save rules, Run allocation (Ctrl+Enter), Export Excel, Download impact report.
 
 ## Layout
 

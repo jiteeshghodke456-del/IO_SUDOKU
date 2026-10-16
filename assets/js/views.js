@@ -10,8 +10,8 @@
   const SEV_TEXT = { blocking: 'Not placed until answered', hardware: 'Placed, CHARM left blank', info: 'Placed, please confirm' };
 
   // ---------- small widgets ----------
-  function seg(opts, value, onChange, label) {
-    return h('div', { class: 'seg', role: 'group', 'aria-label': label || null }, opts.map(([v, t]) => h('button', { type: 'button', 'aria-pressed': String(v === value), onclick: () => onChange(v) }, t)));
+  function seg(opts, value, onChange, label, disabled) {
+    return h('div', { class: 'seg', role: 'group', 'aria-label': label || null }, opts.map(([v, t]) => h('button', { type: 'button', disabled: !!disabled, 'aria-pressed': String(v === value), onclick: () => onChange(v) }, t)));
   }
   function sw(on, onChange, label, disabled) { return h('button', { class: 'switch', type: 'button', role: 'switch', 'aria-checked': String(on), 'aria-label': label, disabled: !!disabled, onclick: () => onChange(!on) }); }
   function conf(c) { return h('div', { class: 'conf' }, h('div', { class: 'bar thin' + (c < 0.9 ? ' warn' : '') }, h('i', { style: { width: Math.round(c * 100) + '%' } })), h('span', {}, Math.round(c * 100) + '%')); }
@@ -30,7 +30,8 @@
 
   async function attach(kind, file) {
     const s = st();
-    s[kind] = { name: file ? file.name : (kind === 'mdb' ? D.meta.file : D.meta.template), size: file ? file.size : (kind === 'mdb' ? 412 * 1024 : 38 * 1024), phase: 'reading', pct: 0 };
+    const list = file ? (file.length !== undefined ? Array.from(file) : [file]) : [];
+    s[kind] = { name: list.length ? list[0].name + (list.length > 1 ? ` + ${list.length - 1} more` : '') : (kind === 'mdb' ? D.meta.file : D.meta.template), size: list.length ? list.reduce((a, f) => a + f.size, 0) : (kind === 'mdb' ? 412 * 1024 : 38 * 1024), phase: 'reading', pct: 0 };
     s.ingested = false; s.proc = null; s.done[1] = false; s.done[2] = false; if (kind === 'mdb') s.map = null;
     drawUpload(); const f = s[kind];
     for (let p = 8; p <= 100; p += 8) { f.pct = Math.min(100, p); const b = $('#bar-' + kind); if (b) b.style.width = f.pct + '%'; await sleep(kind === 'mdb' ? 60 : 40); }
@@ -44,7 +45,7 @@
   function dropzone(kind) {
     const f = st()[kind];
     const label = kind === 'mdb' ? 'Customer IO list (Excel)' : 'IO allocation template (Excel)';
-    const input = h('input', { type: 'file', hidden: true, accept: '.xlsx,.xls,.xlsm,.csv', multiple: kind === 'mdb', onchange: e => { if (e.target.files[0]) attach(kind, e.target.files[0]); } });
+    const input = h('input', { type: 'file', hidden: true, accept: '.xlsx,.xls,.xlsm,.csv', multiple: kind === 'mdb', onchange: e => { if (e.target.files[0]) attach(kind, kind === 'mdb' ? e.target.files : e.target.files[0]); } });
     if (!f) {
       const box = h('div', { class: 'drop', tabindex: '0', role: 'button', 'aria-label': 'Attach ' + label, onclick: () => input.click(), onkeydown: e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click(); } } },
         h('div', { class: 'big' }, h('span', { html: '<svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10 14V4M6 8l4-4 4 4M4 16h12"/></svg>' })),
@@ -53,7 +54,7 @@
         h('span', { class: 'cap' }, 'or click to browse · .xlsx .xls .csv'), input);
       ['dragenter', 'dragover'].forEach(ev => box.addEventListener(ev, e => { e.preventDefault(); box.classList.add('over'); }));
       ['dragleave', 'drop'].forEach(ev => box.addEventListener(ev, e => { e.preventDefault(); box.classList.remove('over'); }));
-      box.addEventListener('drop', e => { const fl = e.dataTransfer && e.dataTransfer.files[0]; if (fl) attach(kind, fl); });
+      box.addEventListener('drop', e => { const fl = e.dataTransfer && e.dataTransfer.files; if (fl && fl[0]) attach(kind, kind === 'mdb' ? fl : fl[0]); });
       return box;
     }
     const m = D.meta; const facts = [];
@@ -161,8 +162,24 @@
   // ======================================================================
   function ruleCard(o) {
     return h('section', { class: 'panel rule' + (o.on === false ? ' off' : '') + (o.wide ? ' wide' : '') },
-      h('div', { class: 'rhead' }, h('h3', {}, o.title), h('span', { class: 'id' }, o.id), o.locked ? h('span', { class: 'chip' }, 'Core') : o.onToggle ? sw(o.on, o.onToggle, o.title + ' on or off') : null),
+      h('div', { class: 'rhead' }, h('h3', {}, o.title), h('span', { class: 'id' }, o.id), o.locked ? h('span', { class: 'chip' }, 'Core') : o.onToggle ? sw(o.on, o.onToggle, o.title + ' on or off', o.lockToggle) : null),
       h('div', { class: 'rsum' }, o.summary), h('div', { class: 'rbody' }, o.body));
+  }
+
+  const customOn = () => st().rules.xj === true || st().rules.xi === true;
+  const CUSTOM = { xi: ['One IO class per CIOC', 'IO class', 'No CIOC holds two different IO classes (AI, AO, DI, DO).'], xj: ['One JB Ref per CIOC', 'JB Ref', 'No CIOC holds cables from two different junction boxes.'] };
+  function customCards(redraw) {
+    const r = st().rules;
+    return ['xi', 'xj'].filter(k => r[k] !== undefined).map(k => ruleCard({ id: 'added-' + k, title: CUSTOM[k][0], on: r[k], onToggle: v => { r[k] = v; if (v) { r.ab = true; r.grp = true; r.max = 0; } redraw(); }, summary: CUSTOM[k][2], body: [
+      h('div', { class: 'row' }, h('label', {}, 'Field'), h('span', { class: 'pill' }, CUSTOM[k][1])), h('div', { class: 'row' }, h('label', {}, 'Level'), h('span', { class: 'pill' }, 'CIOC')),
+      h('div', {}, h('button', { class: 'btn small', onclick: () => { delete r[k]; redraw(); toast('Rule removed'); } }, 'Remove rule'))] }));
+  }
+  function addRuleDialog(redraw) {
+    const r = st().rules;
+    const m = h('div', { class: 'modal', onclick: e => { if (e.target === m) m.remove(); } }, h('div', { role: 'dialog', 'aria-label': 'Add a rule' }, h('h2', {}, 'Add a rule'), h('p', { class: 'muted', style: { margin: 0 } }, 'A CIOC holds only one value of:'),
+      h('div', { style: { display: 'grid', gap: '10px', margin: '14px 0 18px' } }, [['xi', 'IO class', 'AI, AO, DI or DO'], ['xj', 'JB Ref', 'the junction box column']].map(([k, t, d]) => h('button', { class: 'btn', style: { height: '60px', textAlign: 'left' }, disabled: r[k] !== undefined, onclick: () => { const flip = !r.ab || !r.grp || r.max; r[k] = true; r.ab = true; r.grp = true; r.max = 0; m.remove(); redraw(); toast(flip ? 'Rule added. Grouping and A/B are on for added rules.' : 'Rule added'); } }, t, h('span', { class: 'cap', style: { display: 'block', fontWeight: 400 } }, d)))),
+      h('button', { class: 'btn', onclick: () => m.remove() }, 'Cancel')));
+    document.body.append(m);
   }
 
   function viewRules() {
@@ -176,16 +193,16 @@
           h('div', { class: 'row' }, h('label', {}, 'CHARMs per baseplate'), h('span', { class: 'pill' }, '12'), h('span', { class: 'cap' }, 'hardware')),
           h('div', { class: 'row' }, h('label', {}, 'Baseplates per CIOC'), h('span', { class: 'pill' }, '8'), h('span', { class: 'cap' }, 'hardware')),
           h('div', { class: 'row' }, h('label', {}, 'CIOCs per cabinet'), seg([[3, '3'], [4, '4']], r.k, v => { r.k = v; redraw(); }, 'CIOCs per cabinet'), h('span', { class: 'cap' }, 'project rule')),
-          h('div', { class: 'row' }, h('label', {}, 'Cabinet limit'), seg([[0, 'No limit'], [D.limit, String(D.limit)]], r.max ? D.limit : 0, v => { r.max = v; redraw(); }, 'Cabinet limit'))] }),
+          h('div', { class: 'row' }, h('label', {}, 'Cabinet limit'), seg([[0, 'No limit'], [D.limit, String(D.limit)]], r.max ? D.limit : 0, v => { r.max = v; redraw(); }, 'Cabinet limit', customOn()))].concat(customOn() ? [h('div', { class: 'cap' }, 'Added rules need grouping and A/B on, and no cabinet limit.')] : []) }),
         ruleCard({ id: 'cable', title: 'Cable rules', locked: true, summary: 'A cable is never split. Its pairs sit side by side in pair order. Unused pairs keep their slots.', body: [
           h('div', { class: 'row' }, h('label', {}, 'Standard sizes'), ...[2, 6, 12, 24].map(x => h('span', { class: 'pill' }, x))),
           h('div', { class: 'row' }, h('label', {}, 'Size when missing'), h('span', { class: 'pill' }, 'infer from highest pair'), h('span', { class: 'cap' }, 'raises D08')),
           h('div', { class: 'row' }, h('label', {}, 'A 24-pair cable'), h('span', { class: 'cap' }, 'starts at slot 1 and fills 2 baseplates'))] }),
-        ruleCard({ id: 'groups', title: 'Keep groups together', on: r.grp, onToggle: v => { r.grp = v; redraw(); }, summary: 'Signals with the same IO group stay in the same cabinets, in sequence.', body: [
+        ruleCard({ id: 'groups', title: 'Keep groups together', on: r.grp, lockToggle: customOn(), onToggle: v => { r.grp = v; redraw(); }, summary: 'Signals with the same IO group stay in the same cabinets, in sequence.', body: [
           h('div', { class: 'row' }, h('label', {}, 'Field'), h('span', { class: 'pill' }, 'IO group')),
           h('div', { class: 'row' }, h('label', {}, 'Span'), h('span', { class: 'pill' }, 'only if too big')),
           h('div', { class: 'row' }, h('label', {}, 'Order'), h('span', { class: 'pill' }, 'natural (G2 before G10)'))] }),
-        ruleCard({ id: 'ab', title: 'A and B never share a CIOC', on: r.ab, onToggle: v => { r.ab = v; redraw(); }, summary: 'No CIOC holds two different values of Segregation. Blank values may mix.', body: [
+        ruleCard({ id: 'ab', title: 'A and B never share a CIOC', on: r.ab, lockToggle: customOn(), onToggle: v => { r.ab = v; redraw(); }, summary: 'No CIOC holds two different values of Segregation. Blank values may mix.', body: [
           h('div', { class: 'row' }, h('label', {}, 'Field'), h('span', { class: 'pill' }, 'Segregation')),
           h('div', { class: 'row' }, h('label', {}, 'Level'), h('span', { class: 'pill' }, 'CIOC')),
           h('div', { class: 'row' }, h('label', {}, 'Blank values'), h('span', { class: 'pill' }, 'may mix'))] }),
@@ -196,6 +213,7 @@
           h('div', { class: 'row' }, h('label', {}, 'Percent'), seg([[10, '10%'], [20, '20%']], r.spare, v => { r.spare = v; redraw(); }, 'Spare percent')),
           h('div', { class: 'row' }, h('label', {}, 'Counted in'), h('span', { class: 'pill' }, 'baseplates per cabinet, rounded up')),
           h('div', { class: 'row' }, h('label', {}, 'Revisions'), h('span', { class: 'pill' }, 'may use the reserve if nothing else fits'))] }),
+        ...customCards(redraw),
         ruleCard({ id: 'hardware', title: 'CHARM and terminal block', wide: true, locked: true, summary: 'The first row that matches the signal\'s IO type decides the CHARM and terminal block.', body: [
           h('div', { class: 'tbl-wrap', style: { maxHeight: '320px', border: '1px solid var(--line)', borderRadius: '6px' } }, h('table', {}, h('thead', {}, h('tr', {}, ['IO type', 'CHARM', 'Terminal block', 'Product'].map(x => h('th', {}, x)))),
             h('tbody', {}, D.hwOrder.map(k => h('tr', {}, h('td', { class: 'mono' }, k), h('td', {}, h('input', { class: 'txt', style: { width: '100%' }, value: r.hw[k].charm, 'aria-label': k + ' CHARM', oninput: e => { r.hw[k].charm = e.target.value; App.rulesChanged(); } })), h('td', {}, h('input', { class: 'txt', style: { width: '100%' }, value: r.hw[k].tb, 'aria-label': k + ' terminal block', oninput: e => { r.hw[k].tb = e.target.value; App.rulesChanged(); } })), h('td', { class: 'cap' }, D.hw[k].model))))))] }),
@@ -205,7 +223,7 @@
         h('div', { class: 'panel', style: { marginBottom: '12px' } }, h('div', { class: 'panel-h' }, h('div', {}, h('h2', {}, 'Set rules'), h('div', { class: 'cap' }, `Rule set default-deltav · ${App.ruleCount()} rules on · ${diff.length ? 'changed: ' + diff.join(', ') : 'no changes from the default'}`)),
           h('div', { class: 'row' }, h('button', { class: 'btn', onclick: () => { st().rules = App.defaultRules(); App.rulesChanged(); App.go(2); toast('Rules reset'); } }, 'Reset'),
             h('label', { class: 'btn', style: { display: 'inline-flex', alignItems: 'center' } }, 'Load rules', h('input', { type: 'file', hidden: true, accept: '.json', onchange: loadRules })),
-            h('button', { class: 'btn primary', onclick: saveRules }, 'Save rules')))),
+            h('button', { class: 'btn', onclick: () => addRuleDialog(redraw) }, 'Add rule')))),
         h('div', { class: 'rules' }, cards),
       ];
     }
@@ -218,8 +236,8 @@
     const r = st().rules, nm = r.names; const known = ['area', 'unit', 'seq', 'cioc no', 'n'];
     const pv = h('div', { class: 'preview' }); const err = h('div', { class: 'cap', style: { color: 'var(--error)' } });
     const upd = () => {
-      const ctx = { area: nm.area, unit: nm.unit }; const f = (p, c) => IOS.fmtName(p, { ...ctx, ...c });
-      pv.replaceChildren(...[['Cabinet', f(nm.cabinet, { seq: 1 })], ['CIOC', f(nm.cioc, { seq: 1 })], ['Baseplate', f(nm.baseplate, { ciocNo: 1, n: 1 })], ['Controller', f(nm.controller, { seq: 1 })], ['System cabinet', f(nm.system, { seq: 1 })]].flatMap(([a, b]) => [h('span', {}, a), h('span', {}, b)]));
+      const ctx = { area: nm.area, unit: nm.unit }; const f = (p, c, item) => IOS.fmtName(p, { ...ctx, ...c }, item);
+      pv.replaceChildren(...[['Cabinet', f(nm.cabinet, { seq: 1 }, 'cabinet')], ['CIOC', f(nm.cioc, { seq: 1 }, 'cioc')], ['Baseplate', f(nm.baseplate, { ciocNo: 1, n: 1 }, 'baseplate')], ['Controller', f(nm.controller, { seq: 1 }, 'controller')], ['System cabinet', f(nm.system, { seq: 1 }, 'system')]].flatMap(([a, b]) => [h('span', {}, a), h('span', {}, b)]));
       const bad = []; ['cabinet', 'cioc', 'baseplate', 'controller', 'system'].forEach(k => { (nm[k].match(/<[^>]*>/g) || []).forEach(t => { const nme = t.slice(1, -1).split(':')[0].trim().toLowerCase(); if (!known.includes(nme)) bad.push(`${t} in the ${k} pattern`); }); });
       err.textContent = bad.length ? 'R07: unknown token ' + bad.join(', ') + '. Use <Area> <Unit> <Seq:N> <CIOC no:N> <n>.' : '';
     };
@@ -263,7 +281,7 @@
   function banners() {
     const s = st(), out = [], scn = s.run.scn;
     if (s.dirty) out.push(h('div', { class: 'banner' }, h('span', { class: 'sp' }, 'Rules changed since this run. The map and report show the earlier result.'), h('button', { class: 'btn primary small', onclick: () => App.runAllocation() }, 'Run allocation')));
-    if (scn.unplacedSignals) out.push(h('div', { class: 'banner err' }, h('span', { class: 'sp' }, `${fmt(scn.unplacedSignals)} signals in ${scn.unp.length} cables could not be placed under the cabinet limit of ${D.limit}.`), h('button', { class: 'btn small', onclick: () => { st().reportTab = 'tq'; st().tq = { sev: 'all', code: 'C02', q: '', sel: null }; App.go(4); } }, 'Open the TQ')));
+    if (scn.unplacedSignals) out.push(h('div', { class: 'banner err' }, h('span', { class: 'sp' }, `${fmt(scn.unplacedSignals)} signals in ${scn.unp.length} cables could not be placed under the cabinet limit of ${D.limit}.`), h('button', { class: 'btn small', onclick: () => { const t = App.baseTqs().find(x => x.code === 'C02'); st().reportTab = 'tq'; st().tq = { sev: 'all', code: 'C02', q: '', sel: t ? t.id : null }; App.go(4); } }, 'Open the TQ')));
     return out;
   }
 
@@ -323,7 +341,7 @@
     const tabs = [['check', 'Rule check'], ['tq', 'TQ register'], ['sum', 'Summary']];
     const tqs = App.baseTqs(); const open = App.openCount(tqs);
     const bar = h('div', { class: 'tabs', role: 'tablist' }, tabs.map(([k, t]) => h('button', { role: 'tab', 'aria-selected': String(s.reportTab === k), onclick: () => { s.reportTab = k; if (k !== 'tq') s.tq.sel = null; App.go(4); } }, t + (k === 'tq' ? ` (${open})` : ''))), h('span', { class: 'sp' }),
-      h('div', { class: 'row', style: { padding: '5px 4px' } }, h('button', { class: 'btn small', onclick: () => dlTq(tqs) }, 'TQ register'), h('button', { class: 'btn primary small', onclick: () => App.exportExcel() }, 'Download Excel')));
+      h('div', { class: 'row', style: { padding: '5px 4px' } }, h('button', { class: 'btn small', onclick: () => dlTq(tqs) }, 'TQ register (Excel)')));
     const body = h('div', { class: 'panel', style: { borderTopLeftRadius: 0, borderTopRightRadius: 0, borderTop: 0 } });
     if (s.dirty) root.append(h('div', { class: 'banner' }, h('span', { class: 'sp' }, 'Rules changed since this run. The report shows the earlier result.'), h('button', { class: 'btn primary small', onclick: () => App.runAllocation({ to: 4, fast: true }) }, 'Run allocation')));
     if (s.reportTab === 'check') body.append(reportCheck(scn));
@@ -440,11 +458,11 @@
     const s = st(); const R = D.revision, I = R.impact; const root = h('div');
     const kp = [['Added', I.added.length, 'add', 'V04'], ['Deleted', I.deleted.length, 'del', 'V03'], ['Moved', I.moved.length, 'mov', 'V02'], ['CHARM swaps', I.swaps.length, '', 'V01'], ['Renamed', I.renamed.length, '', 'V05']];
     if (s.revView === 'A') root.append(h('div', { class: 'banner' }, h('span', { class: 'sp' }, 'Showing the Rev A allocation. Switch to Changes to see what Rev B did.'), seg([['changes', 'Changes'], ['B', 'Rev B'], ['A', 'Rev A']], s.revView, v => { s.revView = v; App.go(5); }, 'Revision view')));
-    root.append(h('div', { class: 'panel', style: { marginBottom: '12px' } },
-      h('div', { class: 'panel-h' }, h('div', {}, h('h2', {}, 'Revision impact'), h('div', { class: 'cap' }, `Rev A → Rev B · ${R.touch.cabs} cabinets, ${R.touch.ciocs} CIOCs and ${R.touch.bps} baseplates touched`)), h('div', { class: 'row' }, h('button', { class: 'btn primary', onclick: dlImpact }, 'Download impact report'))),
+    root.append(h('div', { class: 'panel', style: { marginBottom: '16px' } },
+      h('div', { class: 'panel-h' }, h('div', {}, h('h2', {}, 'Revision impact'), h('div', { class: 'cap' }, `Rev A → Rev B · ${R.touch.cabs} cabinets, ${R.touch.ciocs} CIOCs and ${R.touch.bps} baseplates touched`))),
       h('div', { class: 'kpis' }, kp.map(([c, v, k, code]) => h('div', { class: 'kpi ' + k }, h('span', { class: 'cap' }, c + ' · ' + code), h('div', { class: 'v' }, v)))),
       h('div', { class: 'hero' }, h('div', { class: 'big' }, fmt(R.naiveMoved - I.moved.length)), h('div', {}, h('b', {}, 'moves avoided'), h('div', { class: 'cap' }, `A fresh re-run would have moved ${fmt(R.naiveMoved)} of ${fmt(R.common)} signals. This revision moved ${I.moved.length}.`)))));
-    if (R.tqs.length) root.append(h('div', { class: 'banner err' }, h('span', { class: 'sp' }, `${R.tqs.length} cable${R.tqs.length > 1 ? 's' : ''} could not be placed.`), h('button', { class: 'btn small', onclick: () => { s.revTab = 'tqs'; App.go(5); } }, 'Open the TQ')));
+    if (R.tqs.length) root.append(h('div', { class: 'banner err' }, h('span', { class: 'sp' }, `${R.tqs.length} cable${R.tqs.length > 1 ? 's' : ''} could not be placed.`), h('button', { class: 'btn small', onclick: () => { const t = App.revTqs().find(x => x.code === 'C01'); s.revTab = 'tqs'; s.tq.sel = t ? t.id : null; App.go(5); const el = $('#revtabs'), w = $('#work'); if (el) w.scrollTop += el.getBoundingClientRect().top - w.getBoundingClientRect().top - 8; } }, 'Open the TQ')));
     root.append(mapPanel(true));
     root.append(impactTabs());
     return root;
@@ -463,8 +481,8 @@
     else if (s.revTab === 'swaps') body = table(['Code', 'Tag', 'IO type', 'CHARM', 'At'], I.swaps.map(x => h('tr', { class: 'click', onclick: goTo(x.addr) }, h('td', { class: 'mono' }, 'V01'), h('td', { class: 'mono' }, x.tag), h('td', { class: 'mono' }, `${x.from} → ${x.to}`), h('td', {}, `${st().rules.hw[x.from].charm} → ${st().rules.hw[x.to].charm}`), h('td', { class: 'mono' }, nmA(x.addr)))));
     else if (s.revTab === 'renamed') body = table(['Code', 'Old tag', 'New tag', 'Cable · pair', 'Slot'], I.renamed.map(x => h('tr', { class: 'click', onclick: goTo(x.addr) }, h('td', { class: 'mono' }, 'V05'), h('td', { class: 'mono' }, x.old), h('td', { class: 'mono' }, x.tag), h('td', { class: 'mono' }, `${x.cable} · ${x.pair}`), h('td', {}, 'Did not change'))));
     else if (s.revTab === 'checks') body = h('div', {}, checkTable(D.revision.check), I.spareUsed && I.spareUsed.length ? h('div', { class: 'pad cap' }, 'V09: ' + I.spareUsed.join('; ')) : null);
-    else body = h('div', { class: 'pad' }, App.revTqs().filter(t => t.rev === 'B' && t.code === 'C01').map(t => h('div', { class: 'opt' }, h('b', {}, t.code + ' · '), t.message, t.options.map((o, i) => h('span', { class: 'eff' }, `${i + 1}. ${o}`)))), D.revision.tqs.length ? null : h('span', { class: 'empty' }, 'No new TQs from the revision.'));
-    return h('div', { style: { marginTop: '12px' } }, h('div', { class: 'tabs', role: 'tablist' }, tabs.map(([k, t]) => h('button', { role: 'tab', 'aria-selected': String(s.revTab === k), onclick: () => { s.revTab = k; const sc = $('#work').scrollTop; App.go(5); $('#work').scrollTop = sc; } }, t))), h('div', { class: 'panel', style: { borderTopLeftRadius: 0, borderTopRightRadius: 0, borderTop: 0 } }, body));
+    else body = h('div', { class: 'pad' }, App.revTqs().filter(t => t.code === 'C01').map(t => h('div', { class: 'opt', style: { cursor: 'pointer', borderColor: s.tq.sel === t.id ? 'var(--focus)' : null }, onclick: () => { s.tq.sel = t.id; App.renderDetail(); } }, h('b', {}, t.code + ' · '), t.message, t.options.map((o, i) => h('span', { class: 'eff' }, `${i + 1}. ${o}`)))), D.revision.tqs.length ? null : h('span', { class: 'empty' }, 'No new TQs from the revision.'));
+    return h('div', { id: 'revtabs', style: { marginTop: '12px' } }, h('div', { class: 'tabs', role: 'tablist' }, tabs.map(([k, t]) => h('button', { role: 'tab', 'aria-selected': String(s.revTab === k), onclick: () => { s.revTab = k; const sc = $('#work').scrollTop; App.go(5); $('#work').scrollTop = sc; } }, t))), h('div', { class: 'panel', style: { borderTopLeftRadius: 0, borderTopRightRadius: 0, borderTop: 0 } }, body));
   }
 
   function render(n) {
@@ -475,5 +493,5 @@
     return viewRevise();
   }
 
-  window.VIEWS = { render, refreshMap, showRun, stage, showRevRun, revStage, tqDetail };
+  window.VIEWS = { render, refreshMap, showRun, stage, showRevRun, revStage, tqDetail, saveRules, dlImpact };
 })();

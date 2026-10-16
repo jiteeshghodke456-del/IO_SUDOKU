@@ -29,9 +29,9 @@
   const st = App.state;
 
   // ---------- derived ----------
-  App.scnKey = function (r) { r = r || st.rules; return [r.spareOn ? r.spare : 0, r.k, r.preset, r.max ? D.limit : 0, r.ab ? 1 : 0, r.grp ? 1 : 0].join('-'); };
+  App.scnKey = function (r) { r = r || st.rules; return [r.spareOn ? r.spare : 0, r.k, r.preset, r.max ? D.limit : 0, r.ab ? 1 : 0, r.grp ? 1 : 0, (r.xj === true ? 'j' : '') + (r.xi === true ? 'i' : '') || '0'].join('-'); };
   App.reserve = function (r) { r = r || st.rules; const N = r.k * 8; return r.spareOn ? Math.ceil(r.spare * N / 100) : 0; };
-  App.cabName = (n, rules) => IOS.fmtName((rules || st.rules).names.cabinet, { area: (rules || st.rules).names.area, unit: (rules || st.rules).names.unit, seq: n });
+  App.cabName = (n, rules) => IOS.fmtName((rules || st.rules).names.cabinet, { area: (rules || st.rules).names.area, unit: (rules || st.rules).names.unit, seq: n }, 'cabinet');
   App.capSlots = () => (st.run ? st.run.rules.k : st.rules.k) * 96;
   App.fillOf = c => Math.round(1000 * c.slots / App.capSlots()) / 10;
 
@@ -83,10 +83,10 @@
     if (n === 4) return !st.run ? 'needs step 3' : `${App.openCount(App.baseTqs())} open TQs`;
     if (n === 5) return !st.run ? 'needs step 3' : st.rev ? `${D.revision.impact.moved.length} moved` : 'load Rev B';
   }
-  const ruleCount = () => 4 + (st.rules.grp ? 1 : 0) + (st.rules.ab ? 1 : 0) + (st.rules.preset !== 'any' ? 1 : 0) + (st.rules.spareOn ? 1 : 0);
+  const ruleCount = () => 4 + (st.rules.xj === true ? 1 : 0) + (st.rules.xi === true ? 1 : 0) + (st.rules.grp ? 1 : 0) + (st.rules.ab ? 1 : 0) + (st.rules.preset !== 'any' ? 1 : 0) + (st.rules.spareOn ? 1 : 0);
   App.ruleCount = ruleCount;
   function reachable(n) { return n === 1 || (n <= 3 && st.ingested) || (n >= 4 && !!st.run); }
-  App.runFromBar = function () { if (!st.ingested || st.running) return; App.runAllocation({ to: st.step === 4 ? 4 : 3, fast: !!st.run }); };
+  App.runFromBar = function () { if (!st.ingested || st.running || st.step !== 3) return; App.runAllocation({ fast: !!st.run }); };
   App.exportExcel = function () {
     if (!st.run) return;
     EXPORT.write(EXPORT.allocationBook({ rules: st.rules, scn: st.run.scn, layout: st.run.layout, seqMap: st.run.seqMap, tqs: App.baseTqs(), k: st.run.rules.k }), 'IO_Allocation_RevA.xlsx'); toast('Excel downloaded');
@@ -98,14 +98,20 @@
       return h('button', { class: cls, disabled: !ok, 'aria-current': st.step === s.n ? 'step' : null, onclick: () => App.go(s.n) },
         h('span', { class: 'n' }, st.done[s.n] ? '✓' : s.n), h('span', { class: 't' }, h('b', {}, s.name), h('span', {}, stepStatus(s.n))));
     });
-    const acts = h('div', { class: 'actions' },
-      h('button', { class: 'btn primary', disabled: !st.ingested || st.running, title: st.ingested ? 'Run the allocation' : 'Upload the IO list first', onclick: App.runFromBar }, 'Run allocation', h('kbd', {}, 'Ctrl+Enter')),
-      h('button', { class: 'btn', disabled: !st.run, title: st.run ? 'Download the filled workbook' : 'Run the allocation first', onclick: App.exportExcel }, 'Export Excel'));
-    nav.replaceChildren(...steps, acts);
+    // the buttons on the right belong to the step you are on
+    const acts = h('div', { class: 'actions' });
+    if (st.step === 2) acts.append(h('button', { class: 'btn primary', onclick: () => VIEWS.saveRules() }, 'Save rules'));
+    if (st.step === 3) {
+      acts.append(h('button', { class: 'btn primary', disabled: st.running, onclick: App.runFromBar }, 'Run allocation', h('kbd', {}, 'Ctrl+Enter')));
+      if (st.run) acts.append(h('button', { class: 'btn', onclick: App.exportExcel }, 'Export Excel'));
+    }
+    if (st.step === 4) acts.append(h('button', { class: 'btn primary', onclick: App.exportExcel }, 'Export Excel'));
+    if (st.step === 5 && st.rev) acts.append(h('button', { class: 'btn primary', onclick: () => VIEWS.dlImpact() }, 'Download impact report'));
+    nav.replaceChildren(...steps, ...(acts.children.length ? [acts] : []));
   }
   App.help = function () {
     const m = h('div', { class: 'modal', onclick: e => { if (e.target === m) m.remove(); } }, h('div', { role: 'dialog', 'aria-label': 'Keyboard shortcuts' }, h('h2', {}, 'Keyboard shortcuts'),
-      h('dl', {}, [['/', 'Find a tag, cable or slot'], ['Ctrl+Enter', 'Run allocation'], ['← →', 'Previous or next cabinet'], ['Esc', 'Close search or this window']].flatMap(([k, t]) => [h('dt', {}, h('kbd', {}, k)), h('dd', {}, t)])),
+      h('dl', {}, [['/', 'Find a tag, cable or slot'], ['Ctrl+Enter', 'Run allocation (step 3)'], ['← →', 'Previous or next cabinet'], ['Esc', 'Close search or this window']].flatMap(([k, t]) => [h('dt', {}, h('kbd', {}, k)), h('dd', {}, t)])),
       h('button', { class: 'btn primary', onclick: () => m.remove() }, 'Close')));
     document.body.append(m);
   };
@@ -169,7 +175,7 @@
           h('div', { class: 'bar thin' }, h('i', { style: { width: Math.min(100, c.fill) + '%' } })),
           chips.length ? h('div', { class: 'r2' }, chips) : null);
       }),
-        unp ? h('button', { class: 'cabitem', onclick: () => { st.reportTab = 'tq'; st.tq = { sev: 'all', code: 'C02', q: '', sel: null }; App.go(4); } }, h('div', { class: 'r1' }, h('span', { class: 'nm' }, 'Not placed'), h('span', { class: 'chip err' }, 'C02')), h('div', { class: 'r2' }, h('span', { class: 'cap' }, `${fmt(unp)} signals`))) : null));
+        unp ? h('button', { class: 'cabitem', onclick: () => { const t = App.baseTqs().find(x => x.code === 'C02'); st.reportTab = 'tq'; st.tq = { sev: 'all', code: 'C02', q: '', sel: t ? t.id : null }; App.go(4); } }, h('div', { class: 'r1' }, h('span', { class: 'nm' }, 'Not placed'), h('span', { class: 'chip err' }, 'C02')), h('div', { class: 'r2' }, h('span', { class: 'cap' }, `${fmt(unp)} signals`))) : null));
   }
   App.pickCab = function (n) { st.cab = n; st.sel = null; st.hiCable = null; if (st.step === 3 || st.step === 5) VIEWS.refreshMap(); renderCabList(); renderDetail(); const it = $('.cabitem.sel'); if (it) it.scrollIntoView({ block: 'nearest' }); };
   App.stepCab = function (d) { const cabs = App.cabinets(); const i = cabs.findIndex(c => c.n === st.cab); const j = Math.min(cabs.length - 1, Math.max(0, i + d)); if (j !== i && cabs[j]) App.pickCab(cabs[j].n); };
@@ -223,7 +229,7 @@
       dl([['Signals placed', sig], ['Wired spare pairs', sp], ['Free slots', free], ['Spare baseplates', `${K * 8 - bps.size} of ${K * 8}`]]));
   }
   function renderDetail() {
-    const R = $('#right'); if (st.step === 4 && st.tq.sel) { R.replaceChildren(h('section', { class: 'panel' }, VIEWS.tqDetail())); return; }
+    const R = $('#right'); if (st.tq.sel && (st.step === 4 || (st.step === 5 && st.revTab === 'tqs'))) { R.replaceChildren(h('section', { class: 'panel' }, VIEWS.tqDetail())); return; }
     if (!st.run || st.running) { R.replaceChildren(h('section', { class: 'panel slotcard' }, h('div', { class: 'lbl' }, 'Selected slot'), h('p', { class: 'empty' }, 'Available when the allocation has run.'))); return; }
     R.replaceChildren(slotCard(), cabCard());
   }
@@ -265,6 +271,8 @@
     if (!r.grp) out.push('Grouping off');
     if (!r.ab) out.push('A/B separation off');
     if (r.preset !== d.preset) out.push(`CIOC sharing: ${r.preset}`);
+    if (r.xj !== undefined) out.push(`Added rule: one JB Ref per CIOC${r.xj ? '' : ' (off)'}`);
+    if (r.xi !== undefined) out.push(`Added rule: one IO class per CIOC${r.xi ? '' : ' (off)'}`);
     if (!r.spareOn) out.push('Spare off'); else if (r.spare !== d.spare) out.push(`Spare ${d.spare}% → ${r.spare}%`);
     D.hwOrder.forEach(k => { if (r.hw[k].charm !== d.hw[k].charm || r.hw[k].tb !== d.hw[k].tb) out.push(`Hardware row ${k}`); });
     Object.keys(d.names).forEach(k => { if (r.names[k] !== d.names[k]) out.push(`Naming: ${k}`); });

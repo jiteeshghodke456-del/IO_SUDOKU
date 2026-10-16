@@ -16,7 +16,7 @@ Every screen draws from one object, `window.IOS_DATA`, defined in `sample/projec
 | `scenarios[key]` | one allocation result per rule combination: `place[i]` = `[cabinet, CIOC, baseplate, slot]` of pair 1 of cable `i` (or 0), `cabs` per-cabinet figures, `check` rule-check rows, `tqs` capacity TQs, `compare` cabinets per CIOC sharing preset | Allocate, Report |
 | `revision` | Rev B signals with status and address, cable starts, impact lists, moves a fresh re-run would have made, rule-check rows | Revise |
 
-`key` is `spare%-ciocsPerCabinet-sharingPreset-cabinetLimit-abOn-groupingOn`, for example `10-4-class-0-1-1`.
+`key` is `spare%-ciocsPerCabinet-sharingPreset-cabinetLimit-abOn-groupingOn-addedRules`, for example `10-4-class-0-1-1-0`. `addedRules` is `0`, `i` (one IO class per CIOC), `j` (one JB Ref per CIOC) or `ji`.
 
 An address is always `[cabinet, CIOC, baseplate, slot]`, each counted from 1. A signal's slot is its cable's start plus its pair number minus one, counted across the baseplates of the CIOC.
 

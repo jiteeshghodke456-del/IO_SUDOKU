@@ -57,11 +57,14 @@
   };
 
   // name patterns: <Area> <Unit> <Seq:N> <CIOC no:N> <n>
-  IOS.fmtName = function (pat, ctx) {
+  // a token without :N pads to the width the default pattern uses for that item
+  const DEFW = { cabinet: 2, cioc: 3, controller: 2, system: 2 };
+  IOS.fmtName = function (pat, ctx, item) {
     return String(pat).replace(/<([^>:]+)(?::(\d+))?>/g, (m, name, w) => {
-      const k = name.trim().toLowerCase(); let v;
-      if (k === 'area') v = ctx.area; else if (k === 'unit') v = ctx.unit; else if (k === 'seq') v = ctx.seq; else if (k === 'cioc no') v = ctx.ciocNo; else if (k === 'n') v = ctx.n; else return m;
-      return w ? String(v).padStart(+w, '0') : String(v);
+      const k = name.trim().toLowerCase(); let v, dw = 0;
+      if (k === 'area') v = ctx.area; else if (k === 'unit') v = ctx.unit; else if (k === 'seq') { v = ctx.seq; dw = DEFW[item] || 0; } else if (k === 'cioc no') { v = ctx.ciocNo; dw = 3; } else if (k === 'n') v = ctx.n; else return m;
+      const width = w ? +w : dw;
+      return width ? String(v).padStart(width, '0') : String(v);
     });
   };
   IOS.names = function (rules, seqMap, addr) {
@@ -69,11 +72,11 @@
     const seq = seqMap.get(addr[0] + '/' + addr[1]) || 0;
     const ctl = Math.max(1, Math.ceil(seq / 16));
     return {
-      cabinet: IOS.fmtName(nm.cabinet, { ...base, seq: addr[0] }),
-      cioc: IOS.fmtName(nm.cioc, { ...base, seq }),
-      baseplate: IOS.fmtName(nm.baseplate, { ...base, ciocNo: seq, n: addr[2] }),
-      controller: IOS.fmtName(nm.controller, { ...base, seq: ctl }),
-      system: IOS.fmtName(nm.system, { ...base, seq: ctl }),
+      cabinet: IOS.fmtName(nm.cabinet, { ...base, seq: addr[0] }, 'cabinet'),
+      cioc: IOS.fmtName(nm.cioc, { ...base, seq }, 'cioc'),
+      baseplate: IOS.fmtName(nm.baseplate, { ...base, ciocNo: seq, n: addr[2] }, 'baseplate'),
+      controller: IOS.fmtName(nm.controller, { ...base, seq: ctl }, 'controller'),
+      system: IOS.fmtName(nm.system, { ...base, seq: ctl }, 'system'),
       seq,
     };
   };

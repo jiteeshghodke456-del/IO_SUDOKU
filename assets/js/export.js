@@ -35,12 +35,18 @@
     const chk = [['Check', 'Result', 'Checked', 'Violations', 'Note'], ...scn.check.map(k => [k.name, k.status, k.checked, k.violations, k.note || ''])];
     XLSX.utils.book_append_sheet(wb, Object.assign(XLSX.utils.aoa_to_sheet(chk), { '!cols': [{ wch: 52 }, { wch: 8 }, { wch: 10 }, { wch: 10 }, { wch: 60 }] }), 'Rule Check');
     const capS = (c.k || rules.k) * 96; const sum = [['Cabinet', 'CIOCs', 'Baseplates used', 'Empty baseplates', 'Slots used', 'Slot capacity', 'Fill %', 'Signals', 'Groups', 'Sides per CIOC']];
-    scn.cabs.forEach(cab => sum.push([IOS.fmtName(rules.names.cabinet, { area: rules.names.area, unit: rules.names.unit, seq: cab.n }), cab.ciocs, cab.bpUsed, cab.bpEmpty, cab.slots, capS, Math.round(1000 * cab.slots / capS) / 10, cab.signals, cab.groups.join(', '), cab.sides.map(x => x || '-').join(' | ')]));
+    scn.cabs.forEach(cab => sum.push([IOS.fmtName(rules.names.cabinet, { area: rules.names.area, unit: rules.names.unit, seq: cab.n }, 'cabinet'), cab.ciocs, cab.bpUsed, cab.bpEmpty, cab.slots, capS, Math.round(1000 * cab.slots / capS) / 10, cab.signals, cab.groups.join(', '), cab.sides.map(x => x || '-').join(' | ')]));
     sum.push([]); sum.push(['Lower bound on cabinets', scn.lowerBound]); sum.push(['CIOC sharing: Class / Group / Any', `${scn.compare.class} / ${scn.compare.group} / ${scn.compare.any} cabinets`]);
     XLSX.utils.book_append_sheet(wb, Object.assign(XLSX.utils.aoa_to_sheet(sum), { '!cols': [24, 8, 14, 14, 10, 12, 8, 9, 24, 24].map(w => ({ wch: w })) }), 'Summary');
     const sp = [['Marshalling Cabinet', 'CIOC', 'Baseplate', 'CHARM Slot', 'Cable', 'Pair']];
     layout.cabs.forEach((cells, cab) => cells.forEach((cell, key) => { if (cell.t !== 'sp') return; const [k, b, s] = key.split('/').map(Number); const nm = IOS.names(rules, seqMap, [cab, k, b, s]); sp.push([nm.cabinet, nm.cioc, nm.baseplate, s, cell.cable, cell.pair]); }));
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sp), 'Spare Pairs');
+    // every signal without an address, with the TQ that explains it
+    const byTag = new Map(), byCable = new Map();
+    tqs.forEach(t => { if (t.severity !== 'blocking') return; t.tags.forEach(g => byTag.set(g, t.code)); t.cables.forEach(g => { if (!byCable.has(g)) byCable.set(g, t.code); }); });
+    const np = [['Tag Number', 'IO Type', 'Cable', 'Pair', 'IO Group', 'Segregation', 'TQ']];
+    IOS.sigs.forEach(sg => { if (layout.byTag.has(sg.tag) && layout.byTag.get(sg.tag).sig === sg) return; np.push([sg.tag, sg.io || sg.ioRaw || '', sg.cable, sg.pair, sg.group, sg.seg, byTag.get(sg.tag) || byCable.get(sg.cable) || sg.block || '']); });
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(np), 'Not Placed');
     return wb;
   }
 
