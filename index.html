@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>IO Signal Sudoku</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230B6B32'/%3E%3Cpath d='M16 6v20M6 16h20' stroke='%23fff' stroke-width='2'/%3E%3Crect x='8' y='8' width='5' height='5' fill='%2393C5FD'/%3E%3Crect x='19' y='8' width='5' height='5' fill='%2386EFAC'/%3E%3Crect x='8' y='19' width='5' height='5' fill='%23FDBA74'/%3E%3Crect x='19' y='19' width='5' height='5' fill='%23D8B4FE'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body>
+<div class="app" id="app">
+  <header class="top">
+    <div class="brand">
+      <svg width="26" height="26" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="6" fill="#0B6B32"/><path d="M16 6v20M6 16h20" stroke="#fff" stroke-width="2"/><rect x="8" y="8" width="5" height="5" fill="#93C5FD"/><rect x="19" y="8" width="5" height="5" fill="#86EFAC"/><rect x="8" y="19" width="5" height="5" fill="#FDBA74"/><rect x="19" y="19" width="5" height="5" fill="#D8B4FE"/></svg>
+      IO Signal Sudoku
+    </div>
+    <div class="proj" id="proj"><b>Unit 100 process plant</b><span class="muted">·</span><span class="mono">AR1 / 100</span><span class="muted">·</span><span id="revtag" class="mono">Rev A</span></div>
+    <div class="search">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="7" cy="7" r="5"/><path d="M11 11l4 4"/></svg>
+      <input id="q" type="search" placeholder="Find a tag, cable or slot" autocomplete="off" disabled aria-label="Find a tag, cable or slot">
+      <div class="search-res" id="qres" hidden></div>
+    </div>
+    <div class="badges" id="badges"><span class="badge on">Offline</span></div>
+  </header>
+  <nav class="stepper" id="stepper" aria-label="Steps"></nav>
+  <div class="body wide" id="body">
+    <aside class="left panel" id="left" aria-label="Cabinets"></aside>
+    <main class="work" id="work"></main>
+    <aside class="right panel" id="right" aria-label="Details"></aside>
+  </div>
+  <footer class="stats" id="stats"></footer>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div class="tip" id="tip" hidden></div>
+
+<script src="assets/vendor/xlsx.full.min.js"></script>
+<script src="sample/project.js"></script>
+<script src="assets/js/util.js"></script>
+<script src="assets/js/store.js"></script>
+<script src="assets/js/map.js"></script>
+<script src="assets/js/export.js"></script>
+<script src="assets/js/views.js"></script>
+<script src="assets/js/app.js"></script>
+</body>
+</html>
